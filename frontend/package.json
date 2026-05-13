@@ -11,7 +11,9 @@
   },
   "dependencies": {
     "@primer/react": "^38.21.1",
+    "@uiw/react-heat-map": "^2.3.3",
     "axios": "^1.15.2",
+    "normalize.css": "^8.0.1",
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
     "react-router-dom": "^7.14.2"
