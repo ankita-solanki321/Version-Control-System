@@ -1,68 +1,127 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import HeatMap from "@uiw/react-heat-map";
+import { API_BASE_URL } from "../../api";
 
-// Function to generate random activity
-const generateActivityData = (startDate, endDate) => {
-  const data = [];
-  let currentDate = new Date(startDate);
-  const end = new Date(endDate);
+const formatDate = (date) => date.toISOString().split("T")[0];
 
-  while (currentDate <= end) {
-    const count = Math.floor(Math.random() * 50);
-    data.push({
-      date: currentDate.toISOString().split("T")[0], //YYY-MM-DD
-      count: count,
-    });
-    currentDate.setDate(currentDate.getDate() + 1);
-  }
-
-  return data;
+const getStartDate = () => {
+  const date = new Date();
+  date.setFullYear(date.getFullYear() - 1);
+  date.setHours(0, 0, 0, 0);
+  return date;
 };
 
-const getPanelColors = (maxCount) => {
-  const colors = {};
-  for (let i = 0; i <= maxCount; i++) {
-    const greenValue = Math.floor((i / maxCount) * 255);
-    colors[i] = `rgb(0, ${greenValue}, 0)`;
-  }
+const addContribution = (contributionMap, rawDate) => {
+  if (!rawDate) return;
 
-  return colors;
+  const date = formatDate(new Date(rawDate));
+  contributionMap.set(date, (contributionMap.get(date) || 0) + 1);
 };
 
-const HeatMapProfile = () => {
+const buildContributionData = (repositories) => {
+  const contributionMap = new Map();
+
+  repositories.forEach((repo) => {
+    addContribution(contributionMap, repo.createdAt);
+
+    if (repo.updatedAt && repo.updatedAt !== repo.createdAt) {
+      addContribution(contributionMap, repo.updatedAt);
+    }
+  });
+
+  return Array.from(contributionMap, ([date, count]) => ({ date, count }));
+};
+
+const panelColors = {
+  0: "#161b22",
+  1: "#0e4429",
+  2: "#006d32",
+  3: "#26a641",
+  4: "#39d353",
+};
+
+const HeatMapProfile = ({ userId }) => {
   const [activityData, setActivityData] = useState([]);
-  const [panelColors, setPanelColors] = useState({});
+  const [repositoryCount, setRepositoryCount] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const startDate = useMemo(() => getStartDate(), []);
+
+  const totalContributions = activityData.reduce((sum, item) => sum + item.count, 0);
 
   useEffect(() => {
-    const fetchData = async () => {
-      const startDate = "2001-01-01";
-      const endDate = "2001-01-31";
-      const data = generateActivityData(startDate, endDate);
-      setActivityData(data);
+    const fetchContributionData = async () => {
+      const profileUserId = userId || localStorage.getItem("userId");
 
-      const maxCount = Math.max(...data.map((d) => d.count));
-      setPanelColors(getPanelColors(maxCount));
+      if (!profileUserId) {
+        setLoading(false);
+        return;
+      }
+
+      try {
+        setLoading(true);
+        setError("");
+
+        const response = await fetch(`${API_BASE_URL}/repo/user/${profileUserId}`);
+
+        if (!response.ok && response.status !== 404) {
+          throw new Error("Unable to fetch contribution data.");
+        }
+
+        const data = await response.json();
+        const repositories = data.repositories || [];
+
+        setRepositoryCount(repositories.length);
+        setActivityData(buildContributionData(repositories));
+      } catch (err) {
+        console.error("Error while fetching contribution data: ", err);
+        setError("Contribution data unavailable right now.");
+      } finally {
+        setLoading(false);
+      }
     };
 
-    fetchData();
-  }, []);
+    fetchContributionData();
+  }, [userId]);
 
   return (
-    <div>
-      <h4>Recent Contributions</h4>
-      <HeatMap
-        className="HeatMapProfile"
-        style={{ maxWidth: "700px", height: "200px", color: "white" }}
-        value={activityData}
-        weekLabels={["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]}
-        startDate={new Date("2001-01-01")}
-        rectSize={15}
-        space={3}
-        rectProps={{
-          rx: 2.5,
-        }}
-        panelColors={panelColors}
-      />
+    <div className="contribution-card">
+      <div className="contribution-header">
+        <div>
+          <h4>Recent Contributions</h4>
+          <p>{totalContributions} contributions in the last year</p>
+        </div>
+        <div className="contribution-stat">
+          <strong>{repositoryCount}</strong>
+          <span>Repositories</span>
+        </div>
+      </div>
+
+      {loading ? (
+        <p className="contribution-message">Loading contributions...</p>
+      ) : error ? (
+        <p className="contribution-message">{error}</p>
+      ) : (
+        <>
+          <HeatMap
+            className="HeatMapProfile"
+            style={{ maxWidth: "100%", height: "200px", color: "var(--muted)" }}
+            value={activityData}
+            weekLabels={["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]}
+            startDate={startDate}
+            endDate={new Date()}
+            rectSize={14}
+            space={3}
+            rectProps={{
+              rx: 2.5,
+            }}
+            panelColors={panelColors}
+          />
+          {activityData.length === 0 && (
+            <p className="contribution-message">No repository activity yet.</p>
+          )}
+        </>
+      )}
     </div>
   );
 };

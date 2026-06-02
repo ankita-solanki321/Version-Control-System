@@ -1,50 +1,44 @@
-import React, {useState, useEffect } from "react"; 
-import axios from"axios";
-import { useAuth } from "../../authContext";
+import { useState } from "react";
+import axios from "axios";
 import { Link } from "react-router-dom";
-
-
-import { PageHeader, Button } from "@primer/react";
+import { Button } from "@primer/react";
+import { useAuth } from "../../authContext";
+import { API_BASE_URL } from "../../api";
+import logo from "../../assets/vcs-mark.svg";
 import "./auth.css";
 
-import logo from "../../assets/github-mark-white.svg";
-
-const Signup = () =>{
+const Signup = () => {
   const [email, setEmail] = useState("");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);// after clicking on signup token and id genrated and we got that as response from backend
+  const [loading, setLoading] = useState(false);
+  const { setCurrentUser } = useAuth();
 
-   const { setCurrentUser } = useAuth();
-
-// setting username , password and email function
-const handleSignup = async (e) => {
+  const handleSignup = async (e) => {
     e.preventDefault();
 
     try {
       setLoading(true);
-      const res = await axios.post("http://localhost:3000/signup", {
-        email: email,
-        password: password,
-        username: username,
+      const res = await axios.post(`${API_BASE_URL}/signup`, {
+        email,
+        password,
+        username,
       });
-      
-    //  stores user_id and token
+
       localStorage.setItem("token", res.data.token);
       localStorage.setItem("userId", res.data.userId);
-
       setCurrentUser(res.data.userId);
-      setLoading(false);
-      
+
       window.location.href = "/";
-    }catch (err) {
+    } catch (err) {
       console.error(err);
       alert("Signup Failed!");
+    } finally {
       setLoading(false);
     }
+  };
 
-};
-return (
+  return (
     <div className="login-wrapper">
       <div className="login-logo-container">
         <img className="logo-login" src={logo} alt="Logo" />
@@ -52,18 +46,13 @@ return (
 
       <div className="login-box-wrapper">
         <div className="login-heading">
-          <div style={{ padding: "8px" }}> {/* ✅ Box replaced with div */}
-            <PageHeader>
-              <PageHeader.TitleArea variant="large">
-                <PageHeader.Title>Sign Up</PageHeader.Title>
-              </PageHeader.TitleArea>
-            </PageHeader>
-          </div>
+          <p>Start building</p>
+          <h1>Create your account</h1>
         </div>
 
-        <div className="login-box">
+        <form className="login-box" onSubmit={handleSignup}>
           <div>
-            <label className="label">Username</label>
+            <label className="label" htmlFor="Username">Username</label>
             <input
               autoComplete="off"
               name="Username"
@@ -71,12 +60,12 @@ return (
               className="input"
               type="text"
               value={username}
-              onChange={(e) => setUsername(e.target.value)}//set the username jo value user dalega
+              onChange={(e) => setUsername(e.target.value)}
             />
           </div>
 
           <div>
-            <label className="label">Email address</label>
+            <label className="label" htmlFor="Email">Email address</label>
             <input
               autoComplete="off"
               name="Email"
@@ -88,8 +77,8 @@ return (
             />
           </div>
 
-          <div className="div">
-            <label className="label">Password</label>
+          <div>
+            <label className="label" htmlFor="Password">Password</label>
             <input
               autoComplete="off"
               name="Password"
@@ -102,14 +91,14 @@ return (
           </div>
 
           <Button
+            type="submit"
             variant="primary"
             className="login-btn"
             disabled={loading}
-            onClick={handleSignup}
           >
             {loading ? "Loading..." : "Signup"}
           </Button>
-        </div>
+        </form>
 
         <div className="pass-box">
           <p>
@@ -120,4 +109,5 @@ return (
     </div>
   );
 };
+
 export default Signup;

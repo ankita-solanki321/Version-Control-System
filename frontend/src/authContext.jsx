@@ -25,7 +25,8 @@
 
 //why we make this file
 //we store data of user in local storage in login data means(jwt token and user id) whenever user user try to access any route so first we gonna perform check that user is login or not so for that we are making a context do that user get value in every screen
-import React, { createContext, useState, useContext } from 'react';
+/* eslint-disable react-refresh/only-export-components */
+import { createContext, useContext, useState } from 'react';
 
 const AuthContext = createContext();
 

@@ -9,4 +9,7 @@ userRouter.post("/login" , userController.login);
 userRouter.get("/userProfile/:id" , userController.getUserProfile);
 userRouter.put("/updateProfile/:id" , userController.updateUserProfile);
 userRouter.delete("/deleteProfile/:id" , userController.deleteUserProfile);
+userRouter.put("/follow/:id", userController.followUser);
+userRouter.put("/unfollow/:id", userController.unfollowUser);
+
 module.exports = userRouter ;

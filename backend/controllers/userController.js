@@ -22,13 +22,36 @@ async function connectClient() {
   if (!client) {
     client = new MongoClient(uri);
     await client.connect();
-    client = client; // ensure same instance
     console.log("MongoDb Connected!");
   }
-  return client; // 👈 return the client
+  return client;
 }
 
 module.exports = { connectClient, client };
+
+function isValidObjectId(id) {
+  return ObjectId.isValid(id);
+}
+
+async function buildUserProfile(usersCollection, userId) {
+  const objectId = new ObjectId(userId);
+  const user = await usersCollection.findOne({ _id: objectId });
+
+  if (!user) {
+    return null;
+  }
+
+  const followersCount = await usersCollection.countDocuments({
+    followedUsers: objectId,
+  });
+  const followingCount = user.followedUsers ? user.followedUsers.length : 0;
+
+  return {
+    ...user,
+    followersCount,
+    followingCount,
+  };
+}
 
 async function signUp(req, res) {
   const { username, password, email } = req.body;
@@ -57,11 +80,11 @@ async function signUp(req, res) {
     const result = await usersCollection.insertOne(newUser);
 
     const token = jwt.sign(
-      { id: result.insertId },
+      { id: result.insertedId },
       process.env.JWT_SECRET_KEY,
       { expiresIn: "1h" }
     );
-    res.json({ token, userId: result.insertId });
+    res.json({ token, userId: result.insertedId });
   } catch (err) {
     console.error("Error during signup : ", err.message);
     res.status(500).send("Server error");
@@ -115,19 +138,22 @@ async function getUserProfile(req, res) {
   const currentID = req.params.id;
 
   try {
+    if (!isValidObjectId(currentID)) {
+      return res.status(400).json({ message: "Invalid user id!" });
+    }
+
        const client = await connectClient();
     const db = client.db("Github-clone");
     const usersCollection = db.collection("users");
 
-    const user = await usersCollection.findOne({
-         _id: new ObjectId(currentID),// here currentID is in string thats why we require above object id etc  ("Hey MongoDB, I know this ID looks like a normal string, but convert it to your special ObjectId format so you can find the matching user.")
-    });
+    const user = await buildUserProfile(usersCollection, currentID);
 
     if (!user) {
-      return res.status(404).json({ message: "User not found!" });
-    }
+    return res.status(404).json({ message: "User not found!" });
+  }
 
-    res.send(user);
+  res.send(user);
+  
   } catch (err) {
     console.error("Error during fetching : ", err.message);
     res.status(500).send("Server error!");
@@ -191,11 +217,92 @@ async function deleteUserProfile(req, res) {
   }
 }
 
+// follow - unfollow 
+ async function followUser(req, res) {
+    const currentUserId = req.body.currentUserId;
+    const targetUserId = req.params.id;
+
+    try {
+      if (!isValidObjectId(currentUserId) || !isValidObjectId(targetUserId)) {
+        return res.status(400).json({ message: "Invalid user id!" });
+      }
+
+      const client = await connectClient();
+      const db = client.db("Github-clone");
+      const usersCollection = db.collection("users");
+
+      if (currentUserId === targetUserId) {
+        return res.status(400).json({ message: "You cannot follow yourself!" });
+      }
+
+      const result = await usersCollection.updateOne(
+        { _id: new ObjectId(currentUserId) },
+        { $addToSet: { followedUsers: new ObjectId(targetUserId) } }
+      );
+
+      if (result.matchedCount === 0) {
+        return res.status(404).json({ message: "Current user not found!" });
+      }
+
+      const targetUser = await buildUserProfile(usersCollection, targetUserId);
+
+      if (!targetUser) {
+        return res.status(404).json({ message: "Target user not found!" });
+      }
+
+      res.json({ message: "User followed successfully!", targetUser });
+    } catch (err) {
+      console.error("Error during follow: ", err.message);
+      res.status(500).send("Server error!");
+    }
+  }
+
+  async function unfollowUser(req, res) {
+    const currentUserId = req.body.currentUserId;
+    const targetUserId = req.params.id;
+
+    try {
+      if (!isValidObjectId(currentUserId) || !isValidObjectId(targetUserId)) {
+        return res.status(400).json({ message: "Invalid user id!" });
+      }
+
+      const client = await connectClient();
+      const db = client.db("Github-clone");
+      const usersCollection = db.collection("users");
+
+      const result = await usersCollection.updateOne(
+        { _id: new ObjectId(currentUserId) },
+        { $pull: { followedUsers: new ObjectId(targetUserId) } }
+      );
+
+      if (result.matchedCount === 0) {
+        return res.status(404).json({ message: "Current user not found!" });
+      }
+
+      const targetUser = await buildUserProfile(usersCollection, targetUserId);
+
+      if (!targetUser) {
+        return res.status(404).json({ message: "Target user not found!" });
+      }
+
+      res.json({ message: "User unfollowed successfully!", targetUser });
+    } catch (err) {
+      console.error("Error during unfollow: ", err.message);
+      res.status(500).send("Server error!");
+    }
+  }
+
+
+
+
 module.exports ={
     getAllUsers,
     signUp ,
     login,
     getUserProfile,
     updateUserProfile,
-    deleteUserProfile
+    deleteUserProfile,
+    followUser,
+    unfollowUser
+
 }

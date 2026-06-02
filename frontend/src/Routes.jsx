@@ -55,7 +55,6 @@
 
 // export default ProjectRoutes;
 
-import React from "react";
 import { Navigate, useRoutes } from 'react-router-dom';
 import Dashboard from "./components/dashboard/Dashboard";
 import Profile from "./components/user/Profile";
@@ -84,6 +83,10 @@ const ProjectRoutes = () => {
         },
         {
             path: "/profile",
+            element: <ProtectedRoute element={<Profile />} />
+        },
+        {
+            path: "/profile/:id",
             element: <ProtectedRoute element={<Profile />} />
         }
     ]);

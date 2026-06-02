@@ -1,21 +1,13 @@
-import React, {useState, useEffect } from "react"; 
-import axios from"axios";
-import { useAuth } from "../../authContext";
+import { useState } from "react";
+import axios from "axios";
 import { Link } from "react-router-dom";
-
-
-import { PageHeader, Button } from "@primer/react";
+import { Button } from "@primer/react";
+import { useAuth } from "../../authContext";
+import { API_BASE_URL } from "../../api";
+import logo from "../../assets/vcs-mark.svg";
 import "./auth.css";
 
-import logo from "../../assets/github-mark-white.svg";
-
 const Login = () => {
-  // useEffect(() => {
-  //   localStorage.removeItem("token");
-  //   localStorage.removeItem("userId");
-  //   setCurrentUser(null);
-  // });
-
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -26,21 +18,20 @@ const Login = () => {
 
     try {
       setLoading(true);
-      const res = await axios.post("http://localhost:3000/login", {
-        email: email,
-        password: password,
+      const res = await axios.post(`${API_BASE_URL}/login`, {
+        email,
+        password,
       });
 
       localStorage.setItem("token", res.data.token);
       localStorage.setItem("userId", res.data.userId);
-
       setCurrentUser(res.data.userId);
-      setLoading(false);
 
       window.location.href = "/";
     } catch (err) {
       console.error(err);
       alert("Login Failed!");
+    } finally {
       setLoading(false);
     }
   };
@@ -51,23 +42,15 @@ const Login = () => {
         <img className="logo-login" src={logo} alt="Logo" />
       </div>
 
-      
-            <div className="login-box-wrapper">
-              <div className="login-heading">
-                <div style={{ padding: "8px" }}> {/* ✅ Box replaced with div */}
-                  <PageHeader>
-                    <PageHeader.TitleArea variant="large">
-                      <PageHeader.Title>Sign Up</PageHeader.Title>
-                    </PageHeader.TitleArea>
-                  </PageHeader>
-                </div>
-              </div>
+      <div className="login-box-wrapper">
+        <div className="login-heading">
+          <p>Welcome back</p>
+          <h1>Sign in to GitHub</h1>
+        </div>
 
-
-
-        <div className="login-box">
+        <form className="login-box" onSubmit={handleLogin}>
           <div>
-            <label className="label">Email address</label>
+            <label className="label" htmlFor="Email">Email address</label>
             <input
               autoComplete="off"
               name="Email"
@@ -78,8 +61,8 @@ const Login = () => {
               onChange={(e) => setEmail(e.target.value)}
             />
           </div>
-          <div className="div">
-            <label className="label">Password</label>
+          <div>
+            <label className="label" htmlFor="Password">Password</label>
             <input
               autoComplete="off"
               name="Password"
@@ -92,14 +75,15 @@ const Login = () => {
           </div>
 
           <Button
+            type="submit"
             variant="primary"
             className="login-btn"
             disabled={loading}
-            onClick={handleLogin}
           >
             {loading ? "Loading..." : "Login"}
           </Button>
-        </div>
+        </form>
+
         <div className="pass-box">
           <p>
             New to GitHub? <Link to="/signup">Create an account</Link>
